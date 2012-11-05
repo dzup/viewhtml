@@ -1,0 +1,14 @@
+*~
+*.ini
+*.php~
+include/*.ini
+include/*.ini~
+include/*.php~
+include/*~
+include/pastehtml.ini
+include/pastehtml.ini~
+include/pastehtml.ini.example~
+include/*~
+
+
+
