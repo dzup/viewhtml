@@ -14,20 +14,15 @@ function connectmysql(){
 	$dbname=MYSQL_DATABASE;
 	$user=MYSQL_USER;
 	$pass=MYSQL_PASSWORD;
-	try {
-    		$dbh = new PDO("mysql:host=$host;dbname=$dbname", $user, $pass);
-    	}
-	catch(PDOException $e)
-    	{
-    		echo $e->getMessage();
-    	}
+	
+	$link = mysqli_connect($host, $user, $pass, $dbname);
+	if (!$link) {
+		die('Could not connect: ' . mysql_error());
+	}
+	//echo 'Connected successfully';
 
-  	//$deb = new PDO("mysql:host=$host;dbname=$dbname", $user, $pass) or die("fATAL ERROR TRYING TO CONNECT MYSQL");;  
-	//http://net.tutsplus.com/tutorials/php/why-you-should-be-using-phps-pdo-for-database-access/
-   	//$deb=mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD) or die("FATAL ERROR AL TRATAR DE CONECTAR A  SQL SERVER");
-   	//mysql_select_db(MYSQL_DATABASE, $deb);
-    	//mysql_query("SET CHARACTER SET utf8", $deb); //cambia para acentos a utf8
-	return $dbh;
+  	
+	return $link;
 }
 function printheader($title){
 ?>
@@ -74,7 +69,12 @@ function printfooter(){
 
 function open_webpage($view,$mysql,$raw){
 //	open_webpage($view,$mysql,$raw);
+	echo "<br>in open_webpage <br>";
+	echo $view;
+	
+	echo $raw;
 	$existe=get_htmlpost($view,$mysql);
+	var_dump($existe);
 	printheader($existe[title]);
 	echo "<center>";	
 	echo "<a href=\"".SERVERROOT."/index.php\">
@@ -89,6 +89,7 @@ function open_webpage($view,$mysql,$raw){
 	echo "</center>";
 
 	if ($existe){	
+			echo "<br>Calling show_html<br>";
 			//viewRAW
 			show_html($mysql,$view,$raw,curPageURL(),$existe);
 	} else {
@@ -105,16 +106,24 @@ function open_webpage($view,$mysql,$raw){
 
 function get_htmlpost($id,$mysql){
 //get row
-	$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+	//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+	echo "<br>in get_htmlpost<br>";
 	$database=MYSQL_DATABASE;
 	$database_table=MYSQL_DATABASE_TABLE;
 	//$sql = "SELECT *  FROM `a7850950_u3mx`.`pastehtml` ORDER BY `date` DESC LIMIT 20";
-	$sql = "SELECT *  FROM `$database`.`$database_table` WHERE `id` = '$id'";
+	$sql = "SELECT *  FROM `$database_table` WHERE `id` = '$id'";
+	echo "<br>querying $sql<br>";
 	$result = $mysql->query($sql);
-	$row = $result->fetch(PDO::FETCH_ASSOC);
+	$row = $result;
+	var_dump($result);
 	if ( $row ) {
+		//$row = $result->fetch_array(MYSQLI_NUM);
+		$row = $result->fetch_array(MYSQLI_ASSOC);
+
+		echo "<br>returning found $id<br>";
 		return $row;
 	} else {
+		echo "<br>returning not found $id<br>";
 		return 0;
 	}
 	//$mysql = null; // close the database connection
@@ -139,13 +148,20 @@ function calculate_uniq_key(){
 
 function curPageURL() {
 	$pageURL = 'http';
- 	if ($_SERVER["HTTPS"] == "on") {$pageURL .= "s";}
+	$server_https = $_SERVER['HTTPS'];
+	//debug see if http or https
+	echo "<br>DEBUG: \$pageURL = \"$pageURL\";";
+	echo "<br>DEBUG: \$_SERVER['HTTPS'] = $_server_https";
+
+
+	if (!empty($server_https)) {$pageURL .= "s";}
  		$pageURL .= "://";
  		if ($_SERVER["SERVER_PORT"] != "80") {
   			$pageURL .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
  		} else {
   			$pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
  	}
+ 	echo "<br>In curPageURL() { return pageURL = \"$pageURL\" }<br>"; 
  	return $pageURL;
 }
 
@@ -204,8 +220,8 @@ function checkEmail($email) {
 
 function get_last_rows($mysql){
 // get last 10 rows addit
-     try {
-	$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+    // try {
+	//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 	$database=MYSQL_DATABASE;
 	$database_table=MYSQL_DATABASE_TABLE;
 	//$sql = "SELECT *  FROM `a7850950_u3mx`.`pastehtml` ORDER BY `date` DESC LIMIT 20";
@@ -231,11 +247,39 @@ function get_last_rows($mysql){
 	echo "</tbody>";
 	echo " </table>";
 	echo "<br>";
-	$mysql = null; // close the database connection
-    }
-    catch(PDOException $e) {
-    	echo $e->getMessage();
-    }
+	//$mysql = null; // close the database connection
+    //}
+    //catch(PDOException $e) {
+    //	echo $e->getMessage();
+    //}
+}
+
+function recapcha(){
+	if (RECAPCHA_ACTIVE){
+		echo "
+			<center>
+				<img id=\"captcha\" src=\"securimage/securimage_show.php\" alt=\"CAPTCHA Image\" />
+				<input type=\"text\" name=\"captcha_code\" size=\"10\" maxlength=\"6\" style=\"background-color:pink\"/>
+				<a href=\"#\" onclick=\"document.getElementById('captcha').src = 'securimage/securimage_show.php?' + Math.random(); return false\"><button alt=\"Click to get another image\" style=\"background-color:yellow\">Sorry, can't read that<br>Let me try<br>another captcha</button></a>
+			</center>
+			<br>
+		";
+	}
+}
+
+function recapcha_check(){
+	if (RECAPCHA_ACTIVE){
+		include_once 'securimage/securimage.php';
+		$securimage = new Securimage();
+		if ($securimage->check($_POST['captcha_code']) == false) {
+			// the code was incorrect
+			// you should handle the error so that the form processor doesn't continue
+			// or you can use the following code if there is no validation or you do not know how
+			echo "The security code entered was incorrect.<br /><br />";
+			echo "Please go <a href='javascript:history.go(-1)'>back</a> and try again.";
+			exit;
+		}
+	}
 }
 
 function disqus(){
@@ -262,12 +306,12 @@ if (DISQUS_ACTIVE){
 
 
 function getFIRSTrow($mysql){
-	$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+	//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 	$database=MYSQL_DATABASE;
 	$database_table=MYSQL_DATABASE_TABLE;
 	$sql = "SELECT *  FROM `$database`.`$database_table` ORDER BY `date` DESC LIMIT 1";
 	$result = $mysql->query($sql);
-	$row = $result->fetch(PDO::FETCH_ASSOC);
+	$row = $result;
 	if ( $row ) {
 		return $row;
 	} else {
@@ -277,13 +321,13 @@ function getFIRSTrow($mysql){
 }//getFIRSTrow($mysql, $current_date){
 
 function getLASTrow($mysql){
-	$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+	//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 	$database=MYSQL_DATABASE;
 	$database_table=MYSQL_DATABASE_TABLE;
 	$count=$mysql->prepare("SELECT *  FROM `$database`.`$database_table` ORDER BY `date` ASC LIMIT 1");
 	$count->execute();
 	$no=$count->rowCount();
-	$row = $count->fetch(PDO::FETCH_ASSOC);
+	$row = $count;
 	if ( $row ) {
 		return $row;
 	} else {
@@ -293,12 +337,12 @@ function getLASTrow($mysql){
 } //getLASTrow($mysql, $current_date){
 
 function showNextRow($mysql, $thisdate){
-	$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+	//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 	$database=MYSQL_DATABASE;
 	$database_table=MYSQL_DATABASE_TABLE;
 	$sql = "SELECT *  FROM `$database`.`$database_table` WHERE date < '$thisdate' ORDER BY `date` DESC LIMIT 1";
 	$result = $mysql->query($sql);
-	$row = $result->fetch(PDO::FETCH_ASSOC);
+	$row = $result;
 	if ( $row ) {
 		return $row;
 	} else {
@@ -308,12 +352,12 @@ function showNextRow($mysql, $thisdate){
 } //showNextRow($mysql, $currentid){
 
 function showPrevRow($mysql, $thisdate){
-	$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+	//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 	$database=MYSQL_DATABASE;
 	$database_table=MYSQL_DATABASE_TABLE;
 	$sql = "SELECT *  FROM `$database`.`$database_table` WHERE date > '$thisdate' ORDER BY `date` ASC LIMIT 1";
 	$result = $mysql->query($sql);
-	$row = $result->fetch(PDO::FETCH_ASSOC);
+	$row = $result;
 	if ( $row ) {
 		return $row;
 	} else {
@@ -329,7 +373,7 @@ function showNextPrevButtom($mysql, $row, $viewmode){
 	$current_id = $row['id'];
 	$prev=showPrevRow($mysql, $current_date);
 	$next=showNextRow($mysql, $current_date);
-	echo "<a href=\"".SERVERROOT."/pastehtml.php?view=".$prev["id"]."&raw=".$viewmode."\"><button>Prev</button></a><a href=\"".SERVERROOT."/pastehtml.php?view=".$next["id"]."&raw=".$viewmode."\"><button>Next</button></a> ";
+	//echo "<a href=\"".SERVERROOT."/pastehtml.php?view=".$prev["id"]."&raw=".$viewmode."\"><button>Prev</button></a><a href=\"".SERVERROOT."/pastehtml.php?view=".$next["id"]."&raw=".$viewmode."\"><button>Next</button></a> ";
 //.getROWcount($mysql);
 }
 
@@ -339,7 +383,7 @@ function getROWcount($mysql){
 	$database_table=MYSQL_DATABASE_TABLE;
 	$sql="SELECT * FROM `$database`.`$database_table` WHERE `id` > ''";
 	$result = $mysql->query($sql);
-	$row = $result->fetch(PDO::FETCH_NUM);
+	$row = $result;
 	return $result->rowCount();;
 }
 
@@ -347,6 +391,7 @@ function show_html($mysql,$view,$viewmode,$currentPage,$row){
 // show_html($view, $existe, '1');
 // $mode = 1 raw
 // $mode = 0 html
+	echo "<br>in show_html<br>";
 	echo "<center>";
 	if ($viewmode){
 		$rawtxt="viewHTML";

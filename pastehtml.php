@@ -1,11 +1,9 @@
 <?php
-$view = mysql_real_escape_string(htmlspecialchars($_REQUEST['view']));
-$raw_post = mysql_real_escape_string($_POST['raw_post']);
-$raw = htmlspecialchars($_REQUEST['raw']); // if > 0 then show raw output
-$email = mysql_real_escape_string(htmlspecialchars($_POST['email']));
-$title = mysql_real_escape_string(htmlspecialchars($_POST['title']));
-if ($view > ""){
-	session_start();
+
+if (!isset($_SERVER["HTTP_HOST"])) {
+	echo "here_setting";
+  parse_str($argv[1], $_GET);
+  parse_str($argv[1], $_POST);
 }
 
 //incluye definiciones
@@ -14,14 +12,33 @@ include_once "include/defs.php";
 
 //conect mysql server
 $mysql = connectmysql();
- 
-//checa si puedes conectar
-//if (!@mysql_select_db(MYSQL_DATABASE)) { exit('<p>Fatal error, can\'t connect database.</p>');}
+$conn = $mysql;
+
+
 $url=curURL();
-//die;
+
 if ($view > ""){
-	open_webpage($view,$mysql,$raw);
+	session_start();
+}
+
+$view = mysqli_real_escape_string($mysql, $_REQUEST['view']);
+$raw_post = mysqli_real_escape_string($mysql, $_POST['raw_post']);
+$raw = mysqli_real_escape_string($mysql, $_REQUEST['raw']); // if > 0 then show raw output
+$email = mysqli_real_escape_string($mysql, $_POST['email']);
+$title = mysqli_real_escape_string($mysql, $_POST['title']);
+
+var_dump($_POST);
+var_dump($_REQUEST);
+echo $view;
+echo "<br>calling open_webpage<br>";
+
+
+if ($view){
+	echo "<br>open_webpage<br>";
+	open_webpage($view, $mysql, $raw);
 } //if $view have some value
+
+
 
 if ($raw_post > ""){
 	//create uniq data
@@ -40,27 +57,22 @@ if ($raw_post > ""){
   		echo "Please go <a href='javascript:history.go(-1)'>back</a> and try again.";
 		exit;
 	}
+echo "here1<br>";
 
-	include_once 'securimage/securimage.php';
-	$securimage = new Securimage();
-	if ($securimage->check($_POST['captcha_code']) == false) {
-  		// the code was incorrect
-  		// you should handle the error so that the form processor doesn't continue
-  		// or you can use the following code if there is no validation or you do not know how
-  		echo "The security code entered was incorrect.<br /><br />";
-  		echo "Please go <a href='javascript:history.go(-1)'>back</a> and try again.";
-  		exit;
-	}
-
+	recapcha_check();
+echo "her2<br>";
 	//create query
 
 //conect mysql server
 $mysql = connectmysql();
+echo "here3<br>";
 
-		$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+		//$mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 		$database=MYSQL_DATABASE;
 		$database_table=MYSQL_DATABASE_TABLE;
-		$mysql->exec("SET CHARACTER SET utf8");      // Sets encoding UTF-8
+		$mysql->query("ALTER TABLE `pastehtml` DEFAULT CHARSET=utf8 COLLATE utf8_general_ci ROW_FORMAT = COMPACT;
+");      // Sets encoding UTF-8
+echo "here4<br>";
 
 		$sql = "INSERT INTO `$database`.`$database_table` SET 
 		id = '$uniq_key',
@@ -69,7 +81,9 @@ $mysql = connectmysql();
 		date = '$today' ,
 		email = '$email', 
 		uniq_string = '$uniq_string';";
-		$count = $mysql->exec($sql);
+		$count = $mysql->query($sql);
+		
+		echo $sql;
 ?>
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
